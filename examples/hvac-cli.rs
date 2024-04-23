@@ -1,37 +1,27 @@
+use clap::{Parser, Subcommand};
 use rbroadlink::{traits::DeviceTrait, Device};
-use std::env;
 
-#[derive(PartialEq)]
+#[derive(Parser)]
+#[clap(about, version)]
+struct Args {
+    #[clap(subcommand)]
+    command: RunMode,
+}
+
+#[derive(Subcommand, Clone, PartialEq)]
 enum RunMode {
-    Help,
-    Info,
+    /// show air conditioner state
+    Status,
+    /// toggle power state
     Toggle,
+    /// power ON air conditioner
     TurnOn,
+    /// power OFF air conditioner
     TurnOff,
 }
 
 fn main() {
-    let argument = env::args().nth(1);
-    let run_mode = if let Some(arg) = argument {
-        match &arg[..] {
-            "info" => RunMode::Info,
-            "toggle" => RunMode::Toggle,
-            "on" => RunMode::TurnOn,
-            "off" => RunMode::TurnOff,
-            _ => RunMode::Help,
-        }
-    } else {
-        RunMode::Help
-    };
-
-    if run_mode == RunMode::Help {
-        println! {"No arguments given, possible choices:\n"};
-        println! {"info      show air conditioner state"};
-        println! {"on        power ON air conditioner"};
-        println! {"off       power OFF air conditioner"};
-        println! {"toggle    toggle power state"};
-        return;
-    };
+    let args = Args::parse();
 
     println!(">>> autodiscovering broadlink devices...");
     let discovered = Device::list(None).expect("Could not enumerate devices!");
@@ -46,7 +36,8 @@ fn main() {
                 return;
             }
         };
-        if run_mode == RunMode::Info {
+
+        if args.command == RunMode::Status {
             println!(">>> get_info");
             let ac_info = hvac.get_info().unwrap();
             println!("Current power state: {}", ac_info.power);
@@ -57,11 +48,11 @@ fn main() {
             println!("Current state: {:?}", state);
 
             // Setting desired mode according to command line argument
-            if run_mode == RunMode::Toggle {
+            if args.command == RunMode::Toggle {
                 state.power = !state.power;
-            } else if run_mode == RunMode::TurnOn {
+            } else if args.command == RunMode::TurnOn {
                 state.power = true;
-            } else if run_mode == RunMode::TurnOff {
+            } else if args.command == RunMode::TurnOff {
                 state.power = false;
             }
 
